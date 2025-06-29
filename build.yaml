@@ -20,6 +20,6 @@
 ---
 include:
   - board: nice_nano_v2
-    shield: corne_left
+    shield: kyria_left nice_view_adapter nice_view_gem #updated entry
   - board: nice_nano_v2
-    shield: corne_right
+    shield: kyria_right nice_view_adapter nice_view_gem #updated entry
