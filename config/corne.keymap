@@ -12,7 +12,7 @@
 
 &mt {
     quick-tap-ms = <175>;
-    require-prior-idle-ms = <150>;
+    require-prior-idle-ms = <100>;
     flavor = "balanced";
     hold-trigger-on-release;
     hold-trigger-key-positions = <1 2 3 4 7 8 9 10 38>;
@@ -32,17 +32,15 @@
         compatible = "zmk,keymap";
 
         layer_0 {
-
             bindings = <
-&kp TAB    &mt LEFT_ALT Q  &mt LEFT_SHIFT W  &mt LEFT_CONTROL E  &mt LEFT_GUI R  &kp T                        &kp Y    &mt LEFT_GUI U  &mt LEFT_CONTROL I  &mt LEFT_SHIFT O  &mt LEFT_ALT P  &kp BSLH
-&kp LC(S)  &kp A           &kp S             &kp D               &kp F           &kp G                        &kp H    &kp J           &kp K               &kp L             &kp SEMI        &kp SQT
-&mo 1      &kp Z           &kp X             &kp C               &kp V           &kp B                        &kp N    &kp M           &kp COMMA           &kp DOT           &kp FSLH        &kp GRAVE
+&kp TAB    &mt LEFT_ALT Q  &mt LEFT_SHIFT W  &mt LEFT_CONTROL E  &mt LEFT_GUI R  &kp T          &kp Y    &mt LEFT_GUI U  &mt LEFT_CONTROL I  &mt LEFT_SHIFT O  &mt LEFT_ALT P  &kp BSLH
+&kp LC(S)  &kp A           &kp S             &kp D               &kp F           &kp G          &kp H    &kp J           &kp K               &kp L             &kp SEMI        &kp SQT
+&mo 1      &kp Z           &kp X             &kp C               &kp V           &kp B          &kp N    &kp M           &kp COMMA           &kp DOT           &kp FSLH        &kp GRAVE
                                              &mo 2               &kp BACKSPACE   &mt ALL ESC    &kp RET  &kp SPACE       &mo 3
             >;
         };
 
         layer_1 {
-
             bindings = <
 &none      &kp C_BRIGHTNESS_DEC  &kp C_BRIGHTNESS_INC  &kp C_NEXT     &kp C_PLAY_PAUSE  &kp C_NEXT    &kp C_VOL_DN      &kp C_MUTE            &kp C_VOL_UP           &none              &none   &none
 &none      &none                 &none                 &none          &kp LC(LA(F))     &none         &kp LEFT          &kp DOWN              &kp UP                 &kp RIGHT          &trans  &trans
@@ -52,7 +50,6 @@
         };
 
         layer_2 {
-
             bindings = <
 &kp EQUAL  &kp NUMBER_1  &kp NUMBER_2  &kp NUMBER_3  &kp NUMBER_4  &kp N5       &kp N6   &kp N7  &kp N8    &kp N9  &kp N0  &kp MINUS
 &kp CLCK   &trans        &trans        &trans        &trans        &trans       &none    &none   &none     &none   &none   &none
