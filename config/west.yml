@@ -5,15 +5,15 @@ manifest:
       # zmk official
     - name: zmkfirmware
       url-base: https://github.com/zmkfirmware
-    - name: gpeye                         #new entry
-      url-base: https://github.com/YousefHadder/nice-view-mod #new entry
+    - name: yousefhadder                       #new entry
+      url-base: https://github.com/YousefHadder #new entry
   projects:
     - name: zmk
       remote: zmkfirmware
       revision: main
       import: app/west.yml
-    - name: urchin-peripheral-animation   #new entry
-      remote: gpeye                       #new entry
+    - name: nice-view-mod   #new entry
+      remote: yousefhadder                       #new entry
       revision: main                      #new entry
   self:
     path: config
