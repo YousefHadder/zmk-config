@@ -2,19 +2,18 @@ manifest:
   defaults:
     revision: v0.2
   remotes:
+      # zmk official
     - name: zmkfirmware
       url-base: https://github.com/zmkfirmware
-    # - name: m165437 #new entry
-    #   url-base: https://github.com/M165437 #new entry
-
-    # Additional modules containing boards/shields/custom code can be listed here as well
-    # See https://docs.zephyrproject.org/3.2.0/develop/west/manifest.html#projects
+    - name: gpeye                         #new entry
+      url-base: https://github.com/GPeye  #new entry
   projects:
     - name: zmk
       remote: zmkfirmware
+      revision: main
       import: app/west.yml
-    # - name: nice-view-gem #new entry
-    #   remote: m165437 #new entry
-    #   revision: main #new entry
+    - name: hammerbeam-slideshow          #new entry
+      remote: gpeye                       #new entry
+      revision: main                      #new entry
   self:
     path: config
