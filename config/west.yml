@@ -6,13 +6,13 @@ manifest:
     - name: zmkfirmware
       url-base: https://github.com/zmkfirmware
     - name: gpeye                         #new entry
-      url-base: https://github.com/GPeye  #new entry
+      url-base: https://github.com/YousefHadder/nice-view-mod #new entry
   projects:
     - name: zmk
       remote: zmkfirmware
       revision: main
       import: app/west.yml
-    - name: hammerbeam-slideshow          #new entry
+    - name: urchin-peripheral-animation   #new entry
       remote: gpeye                       #new entry
       revision: main                      #new entry
   self:
