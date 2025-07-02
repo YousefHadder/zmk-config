@@ -1,19 +1,19 @@
 manifest:
   defaults:
-    revision: v0.2
+    rmanifest:
   remotes:
       # zmk official
     - name: zmkfirmware
       url-base: https://github.com/zmkfirmware
-    - name: yousefhadder                       #new entry
-      url-base: https://github.com/YousefHadder #new entry
+    - name: gpeye                         #new entry
+      url-base: https://github.com/GPeye  #new entry
   projects:
     - name: zmk
       remote: zmkfirmware
       revision: main
       import: app/west.yml
-    - name: nice-view-mod   #new entry
-      remote: yousefhadder                       #new entry
+    - name: hammerbeam-slideshow          #new entry
+      remote: gpeye                       #new entry
       revision: main                      #new entry
   self:
-    path: config
+    path: configevision: v0.2
