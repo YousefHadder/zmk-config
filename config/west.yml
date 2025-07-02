@@ -1,6 +1,4 @@
 manifest:
-  defaults:
-    rmanifest:
   remotes:
       # zmk official
     - name: zmkfirmware
