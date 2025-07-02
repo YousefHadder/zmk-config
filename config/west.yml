@@ -16,4 +16,4 @@ manifest:
       remote: gpeye                       #new entry
       revision: main                      #new entry
   self:
-    path: configevision: v0.2
+    path: config
