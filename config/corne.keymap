@@ -34,7 +34,7 @@
         layer_0 {
             bindings = <
 &kp TAB    &mt LEFT_ALT Q  &mt LEFT_SHIFT W  &mt LEFT_CONTROL E  &mt LEFT_GUI R  &kp T          &kp Y    &mt LEFT_GUI U  &mt LEFT_CONTROL I  &mt LEFT_SHIFT O  &mt LEFT_ALT P  &kp BSLH
-&kp LC(S)  &kp A           &kp S             &kp D               &kp F           &kp G          &kp H    &kp J           &kp K               &kp L             &kp SEMI        &kp SQT
+&kp LC(B)  &kp A           &kp S             &kp D               &kp F           &kp G          &kp H    &kp J           &kp K               &kp L             &kp SEMI        &kp SQT
 &mo 1      &kp Z           &kp X             &kp C               &kp V           &kp B          &kp N    &kp M           &kp COMMA           &kp DOT           &kp FSLH        &kp GRAVE
                                              &mo 2               &kp BACKSPACE   &mt ALL ESC    &kp RET  &kp SPACE       &mo 3
             >;
