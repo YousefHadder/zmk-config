@@ -9,7 +9,7 @@ manifest:
       remote: zmkfirmware
       revision: main
       import: app/west.yml
-    - name: nice-view-custom          #new entry
+    - name: nice-view-mod          #new entry
       remote: yousefhadder        #new entry
       revision: main                      #new entry
   self:
