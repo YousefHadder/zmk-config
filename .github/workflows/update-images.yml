@@ -1,0 +1,184 @@
+name: Update Nice!View Images
+
+on:
+  push:
+    paths:
+      - 'assets/**'
+  workflow_dispatch:
+
+jobs:
+  update-images:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install Pillow
+
+    - name: Check for images in assets folder
+      id: check_images
+      run: |
+        if [ -d "assets" ] && [ "$(find assets -type f \( -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.gif" -o -name "*.bmp" \) | wc -l)" -gt 0 ]; then
+          echo "images_exist=true" >> $GITHUB_OUTPUT
+          echo "Found images in assets folder"
+        else
+          echo "images_exist=false" >> $GITHUB_OUTPUT
+          echo "No images found in assets folder"
+        fi
+
+    - name: Convert images to C arrays
+      if: steps.check_images.outputs.images_exist == 'true'
+      run: |
+        # Create output directory for converted files
+        mkdir -p converted
+
+        # Convert all images in assets folder
+        find assets -type f \( -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.gif" -o -name "*.bmp" \) -exec python3 scripts/niceview_lvgl_convert.py {} --outdir converted --lvgl \;
+
+    - name: Generate art.c file
+      if: steps.check_images.outputs.images_exist == 'true'
+      run: |
+        # Start building the new art.c file
+        cat > boards/shields/nice_view_custom/widgets/art.c << 'EOF'
+        /*
+         *
+         * Copyright (c) 2023 Collin Hodge
+         * Copyright (c) 2023 The ZMK Contributors
+         * SPDX-License-Identifier: MIT
+         *
+         */
+
+        #include <lvgl.h>
+
+        #ifndef LV_ATTRIBUTE_MEM_ALIGN
+        #define LV_ATTRIBUTE_MEM_ALIGN
+        #endif
+
+        EOF
+
+        # Process each converted file
+        for file in converted/*.c; do
+          if [ -f "$file" ]; then
+            # Extract the base name for the attribute definition
+            basename=$(basename "$file" .c)
+
+            # Add attribute definition
+            echo "" >> boards/shields/nice_view_custom/widgets/art.c
+            echo "#ifndef LV_ATTRIBUTE_IMG_${basename^^}" >> boards/shields/nice_view_custom/widgets/art.c
+            echo "#define LV_ATTRIBUTE_IMG_${basename^^}" >> boards/shields/nice_view_custom/widgets/art.c
+            echo "#endif" >> boards/shields/nice_view_custom/widgets/art.c
+            echo "" >> boards/shields/nice_view_custom/widgets/art.c
+
+            # Add the image data and descriptor, but modify for indexed format
+            sed 's/LV_IMG_CF_ALPHA_1BIT/LV_IMG_CF_INDEXED_1BIT/g' "$file" | \
+            sed "s/static const unsigned char \(.*\)_map\[\]/const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST LV_ATTRIBUTE_IMG_${basename^^} uint8_t \1_map[]/" | \
+            sed '/^#include <stdint.h>/d' | \
+            sed '/^\/\* Auto-generated/,/^ \*\//d' | \
+            sed "1i\\
+        const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST LV_ATTRIBUTE_IMG_${basename^^} uint8_t ${basename}_map[] = {\\
+        #if CONFIG_NICE_VIEW_WIDGET_INVERTED\\
+                0xff, 0xff, 0xff, 0xff, /*Color of index 0*/\\
+                0x00, 0x00, 0x00, 0xff, /*Color of index 1*/\\
+        #else\\
+                0x00, 0x00, 0x00, 0xff, /*Color of index 0*/\\
+                0xff, 0xff, 0xff, 0xff, /*Color of index 1*/\\
+        #endif\\
+        \\
+        " >> boards/shields/nice_view_custom/widgets/art.c
+          fi
+        done
+
+    - name: Update peripheral_status.c for image rotation
+      if: steps.check_images.outputs.images_exist == 'true'
+      run: |
+        python3 << 'EOF'
+        import os
+        import re
+        from pathlib import Path
+
+        # Get list of converted images
+        converted_files = []
+        converted_dir = Path("converted")
+        if converted_dir.exists():
+            for file in converted_dir.glob("*.c"):
+                converted_files.append(file.stem)
+
+        if not converted_files:
+            print("No converted files found")
+            exit(0)
+
+        # Read the current peripheral_status.c
+        peripheral_file = Path("boards/shields/nice_view_custom/widgets/peripheral_status.c")
+        content = peripheral_file.read_text()
+
+        # Generate image declarations
+        declarations = []
+        for img in converted_files:
+            declarations.append(f"LV_IMG_DECLARE({img});")
+
+        # Replace existing declarations (lines 26-29)
+        declaration_block = "\n".join(declarations)
+        content = re.sub(
+            r'LV_IMG_DECLARE\([^)]+\);.*?(?=static sys_slist_t)',
+            declaration_block + "\n",
+            content,
+            flags=re.DOTALL
+        )
+
+        # Create image rotation logic
+        rotation_code = f"""
+        // Image rotation - change every 5 minutes (300000ms)
+        static int64_t last_image_change = 0;
+        static int current_image_index = 0;
+        static const lv_img_dsc_t* images[] = {{
+            {', '.join(f'&{img}' for img in converted_files)}
+        }};
+        static const int num_images = sizeof(images) / sizeof(images[0]);
+
+        int64_t current_time = k_uptime_get();
+        if (current_time - last_image_change > 300000) {{ // 5 minutes
+            current_image_index = (current_image_index + 1) % num_images;
+            last_image_change = current_time;
+        }}
+
+        lv_img_set_src(art, images[current_image_index]);"""
+
+        # Replace the image selection logic (around lines 118-122)
+        content = re.sub(
+            r'lv_obj_t \*art = lv_img_create\(widget->obj\);.*?lv_obj_align\(art, LV_ALIGN_TOP_LEFT, 0, 0\);',
+            f"""lv_obj_t *art = lv_img_create(widget->obj);
+        {rotation_code.strip()}
+            lv_obj_align(art, LV_ALIGN_TOP_LEFT, 0, 0);""",
+            content,
+            flags=re.DOTALL
+        )
+
+        # Write the updated content
+        peripheral_file.write_text(content)
+        print(f"Updated peripheral_status.c with {len(converted_files)} images")
+        EOF
+
+    - name: Commit and push changes
+      if: steps.check_images.outputs.images_exist == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+
+        git add boards/shields/nice_view_custom/widgets/art.c
+        git add boards/shields/nice_view_custom/widgets/peripheral_status.c
+
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "🤖 Auto-update Nice!View images from assets folder."
+          git push
+        fi
