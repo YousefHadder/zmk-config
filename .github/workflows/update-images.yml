@@ -32,7 +32,7 @@ jobs:
     - name: Check for images in assets folder
       id: check_images
       run: |
-        if [ -d "assets" ] && [ "$(find assets -type f \( -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.gif" -o -name "*.bmp" \) | wc -l)" -gt 0 ]; then
+        if [ -d "assets" ] && [ "$(find assets -type f \( -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.gif" -o -name "*.bmp" -o -name "*.webp" \) | wc -l)" -gt 0 ]; then
           echo "images_exist=true" >> $GITHUB_OUTPUT
           echo "Found images in assets folder"
         else
