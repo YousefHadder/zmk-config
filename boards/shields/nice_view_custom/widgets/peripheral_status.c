@@ -23,6 +23,7 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #include "peripheral_status.h"
 
+LV_IMG_DECLARE(palestine);
 LV_IMG_DECLARE(peakpx);
 static sys_slist_t widgets = SYS_SLIST_STATIC_INIT(&widgets);
 
@@ -117,7 +118,7 @@ int zmk_widget_status_init(struct zmk_widget_status *widget, lv_obj_t *parent) {
 static int64_t last_image_change = 0;
 static int current_image_index = 0;
 static const lv_img_dsc_t* images[] = {
-    &peakpx
+    &palestine, &peakpx
 };
 static const int num_images = sizeof(images) / sizeof(images[0]);
 
