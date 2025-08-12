@@ -70,74 +70,63 @@ jobs:
           fi
         done
 
-    - name: Update peripheral_status.c for image rotation
+    - name: Update peripheral_status.c (replace LV_IMG_DECLARE + anim_imgs array)
       if: steps.check_images.outputs.images_exist == 'true'
       run: |
         python3 << 'EOF'
-        import os
         import re
         from pathlib import Path
 
-        # Get list of converted images
-        converted_files = []
         converted_dir = Path("converted")
-        if converted_dir.exists():
-            for file in converted_dir.glob("*.c"):
-                converted_files.append(file.stem)
+        peripheral_file = Path("boards/shields/nice_view_custom/widgets/peripheral_status.c")
 
-        if not converted_files:
-            print("No converted files found")
+        if not peripheral_file.exists():
+            print("peripheral_status.c not found; skipping.")
             exit(0)
 
-        # Read the current peripheral_status.c
-        peripheral_file = Path("boards/shields/nice_view_custom/widgets/peripheral_status.c")
-        content = peripheral_file.read_text()
+        # Collect converted image stems (deterministic order)
+        converted = sorted([p.stem for p in converted_dir.glob("*.c")])
+        if not converted:
+            print("No converted images; skipping peripheral_status.c modifications.")
+            exit(0)
 
-        # Generate image declarations
-        declarations = []
-        for img in converted_files:
-            declarations.append(f"LV_IMG_DECLARE({img});")
+        content = peripheral_file.read_text(encoding="utf-8")
 
-        # Replace existing declarations (lines 26-29)
-        declaration_block = "\n".join(declarations)
-        content = re.sub(
-            r'LV_IMG_DECLARE\([^)]+\);.*?(?=static sys_slist_t)',
-            declaration_block + "\n",
-            content,
-            flags=re.DOTALL
+        # Build new declarations block
+        decl_block = "\n".join(f"LV_IMG_DECLARE({stem});" for stem in converted)
+
+        # Build new anim_imgs array
+        anim_array = "const lv_img_dsc_t *anim_imgs[] = {\n" + \
+                     "".join(f"    &{stem},\n" for stem in converted) + \
+                     "};"
+
+        replacement_block = f"{decl_block}\n\n{anim_array}"
+
+        # Regex to find existing declarations + anim_imgs array
+        # Matches one or more LV_IMG_DECLARE(...) lines followed by the anim_imgs array definition.
+        pattern = re.compile(
+            r'(?:LV_IMG_DECLARE\([^)]+\);\s*)+\nconst\s+lv_img_dsc_t\s*\*\s*anim_imgs\[\]\s*=\s*\{.*?\};',
+            re.DOTALL
         )
 
-        # Create image rotation logic
-        rotation_code = f"""
-        // Image rotation - change every 5 minutes (300000ms)
-        static int64_t last_image_change = 0;
-        static int current_image_index = 0;
-        static const lv_img_dsc_t* images[] = {{
-            {', '.join(f'&{img}' for img in converted_files)}
-        }};
-        static const int num_images = sizeof(images) / sizeof(images[0]);
+        if pattern.search(content):
+            new_content = pattern.sub(replacement_block, content)
+            print("Replaced existing LV_IMG_DECLARE + anim_imgs block.")
+        else:
+            # Fallback: insert after last #include line
+            include_pattern = re.compile(r'(#include[^\n]+\n)+', re.DOTALL)
+            m = include_pattern.search(content)
+            if m:
+                idx = m.end()
+                new_content = content[:idx] + "\n" + replacement_block + "\n\n" + content[idx:]
+                print("Inserted declarations + anim_imgs block after includes (previous block not found).")
+            else:
+                # As a last resort, prepend
+                new_content = replacement_block + "\n\n" + content
+                print("Prepended declarations + anim_imgs block (includes not found).")
 
-        int64_t current_time = k_uptime_get();
-        if (current_time - last_image_change > 300000) {{ // 5 minutes
-            current_image_index = (current_image_index + 1) % num_images;
-            last_image_change = current_time;
-        }}
-
-        lv_img_set_src(art, images[current_image_index]);"""
-
-        # Replace the image selection logic (around lines 118-122)
-        content = re.sub(
-            r'lv_obj_t \*art = lv_img_create\(widget->obj\);.*?lv_obj_align\(art, LV_ALIGN_TOP_LEFT, 0, 0\);',
-            f"""lv_obj_t *art = lv_img_create(widget->obj);
-        {rotation_code.strip()}
-            lv_obj_align(art, LV_ALIGN_TOP_LEFT, 0, 0);""",
-            content,
-            flags=re.DOTALL
-        )
-
-        # Write the updated content
-        peripheral_file.write_text(content)
-        print(f"Updated peripheral_status.c with {len(converted_files)} images")
+        peripheral_file.write_text(new_content, encoding="utf-8")
+        print(f"Updated peripheral_status.c with {len(converted)} images.")
         EOF
 
     - name: Commit and push changes
@@ -152,6 +141,6 @@ jobs:
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
-          git commit -m "🤖 Auto-update Nice!View images from assets folder."
-          git push
+            git commit -m "🤖 Auto-update Nice!View images and peripheral_status declarations."
+            git push
         fi
