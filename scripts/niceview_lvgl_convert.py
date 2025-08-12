@@ -146,7 +146,7 @@ def main():
     p = argparse.ArgumentParser(description="Convert images to 1bpp indexed LVGL arrays (always inverted).")
     p.add_argument("inputs", nargs="+", help="Input image files (png/jpg/gif/bmp/...)")
     p.add_argument("--outdir", default="out", help="Output directory (default: out)")
-    p.add_argument("--width", type=int, default=60, help="Resize target width (default: 140)")
+    p.add_argument("--width", type=int, default=68, help="Resize target width (default: 140)")
     p.add_argument("--height", type=int, default=140, help="Resize target height (default: 60)")
     p.add_argument("--no-dither", action="store_true", help="Disable Floyd–Steinberg dithering (use threshold)")
     p.add_argument("--lsb-first", action="store_true", help="Pack bits with LSB-first (bit 0 is leftmost pixel)")
