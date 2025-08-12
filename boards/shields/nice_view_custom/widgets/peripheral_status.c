@@ -23,8 +23,14 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #include "peripheral_status.h"
 
-LV_IMG_DECLARE(palestine);
 LV_IMG_DECLARE(me);
+LV_IMG_DECLARE(palestine);
+
+const lv_img_dsc_t *anim_imgs[] = {
+    &me,
+    &palestine,
+};
+
 static sys_slist_t widgets = SYS_SLIST_STATIC_INIT(&widgets);
 
 struct peripheral_status_state {
@@ -113,27 +119,24 @@ int zmk_widget_status_init(struct zmk_widget_status *widget, lv_obj_t *parent) {
     lv_obj_align(top, LV_ALIGN_TOP_RIGHT, 0, 0);
     lv_canvas_set_buffer(top, widget->cbuf, CANVAS_SIZE, CANVAS_SIZE, LV_IMG_CF_TRUE_COLOR);
 
-    lv_obj_t *art = lv_img_create(widget->obj);
-// Image rotation - change every 5 minutes (300000ms)
-static int64_t last_image_change = 0;
-static int current_image_index = 0;
-static const lv_img_dsc_t* images[] = {
-    &palestine, &me
-};
-static const int num_images = sizeof(images) / sizeof(images[0]);
+    //lv_obj_t *art = lv_img_create(widget->obj);
+    //bool random = sys_rand32_get() & 1;
+    //lv_img_set_src(art, random ? &balloon : &mountain);
 
-int64_t current_time = k_uptime_get();
-if (current_time - last_image_change > 300000) { // 5 minutes
-    current_image_index = (current_image_index + 1) % num_images;
-    last_image_change = current_time;
-}
+    lv_obj_t * art = lv_animimg_create(widget->obj);            //<--
+    lv_obj_center(art);                                         //<--
+    lv_animimg_set_src(art, (const void **) anim_imgs, 2);     //<--
+    lv_animimg_set_duration(art, 2000);                         //<--
+    lv_animimg_set_repeat_count(art, LV_ANIM_REPEAT_INFINITE);  //<--
+    lv_animimg_start(art);                                      //<--
 
-lv_img_set_src(art, images[current_image_index]);
     lv_obj_align(art, LV_ALIGN_TOP_LEFT, 0, 0);
 
     sys_slist_append(&widgets, &widget->node);
     widget_battery_status_init();
     widget_peripheral_status_init();
+
     return 0;
 }
+
 lv_obj_t *zmk_widget_status_obj(struct zmk_widget_status *widget) { return widget->obj; }
