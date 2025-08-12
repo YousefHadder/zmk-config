@@ -4,10 +4,12 @@ on:
     paths-ignore:
       - 'assets/**'
       - 'scripts/niceview_lvgl_convert.py'
+      - '.github/workflows/**'
   pull_request:
     paths-ignore:
       - 'assets/**'
       - 'scripts/niceview_lvgl_convert.py'
+      - '.github/workflows/**'
   workflow_dispatch:
 
 jobs:
