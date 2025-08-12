@@ -23,13 +23,9 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #include "peripheral_status.h"
 
-LV_IMG_DECLARE(itachi);
-LV_IMG_DECLARE(me);
 LV_IMG_DECLARE(palestine);
 
 const lv_img_dsc_t *anim_imgs[] = {
-    &itachi,
-    &me,
     &palestine,
 };
 
