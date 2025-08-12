@@ -1,99 +1,332 @@
 # **Corne + Nice!Nano + Nice!View — ZMK Config** ✨
 
-- 🧠 Repo for a Corne (3x6 + 3 thumbs) running ZMK
-- 🔌 MCUs: `nice_nano_v2` (split, left/right)
-- 🖼️ Display: Nice!View OLED with a custom status/art widget
+A complete ZMK configuration for the Corne keyboard with Nice!Nano v2 controllers and custom Nice!View displays featuring rotating artwork.
 
-This repository contains the full user configuration for ZMK, including keymaps, build matrix, a custom Nice!View widget, and an automated workflow to convert and rotate artwork for the screen.
+## 🎯 **Quick Overview**
 
-**Table of Contents**
-- Overview
-- Repo Structure
-- Nice!View Artwork Workflow
-- Image Conversion Details
-- Local Testing
-- Tips & Troubleshooting
+- **Keyboard**: Corne (3×6 + 3 thumb keys, split layout)
+- **MCUs**: Nice!Nano v2 (wireless, split left/right halves)
+- **Display**: Nice!View OLED with custom status screen and rotating artwork
+- **Features**: Custom keymap, automated image conversion, wireless connectivity
 
-**Overview**
-- 🧩 Split layout: 3 rows × 6 columns + 3 thumb keys
-- 🔋 Custom status screen: battery, connection, and rotating artwork
-- ⚙️ Automated CI: image-to-C conversion and firmware builds
+## 📋 **Table of Contents**
 
-**Repo Structure**
-- `config/`
-  - `corne.keymap`: Keymap layers, combos, and behaviors
-  - `corne.conf`: ZMK settings (enables custom status screen)
-  - `west.yml`: ZMK upstream reference
-- `boards/shields/nice_view_custom/widgets/`
-  - `peripheral_status.c/.h`: Custom status widget (art + status)
-  - `status.c/.h`, `bolt.c`, `util.c/.h`: Supporting widget code
-  - `art.c`: Auto-generated C file containing the image data; do not edit
-- `assets/`
-  - Source images for Nice!View artwork (e.g., `me.png`, `palestine.webp`)
-- `scripts/`
-  - `niceview_lvgl_convert.py`: Python image → LVGL C array converter
-- `.github/workflows/`
-  - `update-images.yml`: Converts images and commits new `art.c` and declarations
-  - `build.yml`: Builds firmware using ZMK’s reusable workflow
-- `build.yaml`: Build matrix for left/right halves and shields
-- `zephyr/module.yml`: Zephyr module descriptor
+1. [Getting Started](#getting-started)
+2. [Using This Repository](#using-this-repository)
+   - [Fork and Use](#fork-and-use)
+   - [Direct Usage](#direct-usage)
+3. [Repository Structure](#repository-structure)
+4. [Nice!View Artwork System](#niceview-artwork-system)
+5. [Configuration](#configuration)
+   - [Keymap Customization](#keymap-customization)
+   - [Display Settings](#display-settings)
+6. [Building Firmware](#building-firmware)
+7. [Image Conversion Details](#image-conversion-details)
+8. [Local Development](#local-development)
+9. [Contributing](#contributing)
 
-**Nice!View Artwork Workflow**
-The CI automates converting images and wiring them into the widget.
+##  **Getting Started**
 
-1) ➕ Add images
-   - Place PNG/JPG/WEBP/etc. into `assets/` and push your branch (or open a PR).
-   - Tip: Keep filenames simple (letters, numbers, underscores). The filename becomes the C symbol (e.g., `logo.png` → `LV_IMG_DECLARE(logo)`).
+### Quick Start
 
-2) 🤖 Conversion action runs (`.github/workflows/update-images.yml`)
-   - Checks `assets/` for images.
-   - Converts each image via `scripts/niceview_lvgl_convert.py` into `converted/*.c`.
-   - Concatenates all converted files into `boards/shields/nice_view_custom/widgets/art.c`.
-   - Updates `boards/shields/nice_view_custom/widgets/peripheral_status.c` to:
-     - Declare each image (`LV_IMG_DECLARE(...)`).
-     - Rotate displayed image automatically every 5 minutes.
-   - Commits and pushes changes back to the repo.
+1. **Fork this repository** to your GitHub account
+2. **Enable GitHub Actions** in your forked repository
+3. **Add your images** to the `assets/` folder
+4. **Push changes** - GitHub Actions will automatically build firmware
+5. **Download firmware** from the Actions tab
+6. **Flash to your keyboards** using the instructions below
 
-3) 🏗️ Firmware build triggers (`.github/workflows/build.yml`)
-   - The commit from step 2 modifies tracked source files (not ignored), which triggers the build workflow.
-   - Uses `build.yaml` to build both halves:
-     - Left: `nice_nano_v2` + `corne_left nice_view_adapter nice_view`
-     - Right: `nice_nano_v2` + `corne_right nice_view_adapter nice_view_custom`
-   - Download artifacts from the Actions page and flash them to your boards.
+---
 
-4) 🖼️ Result on-device
-   - The status screen shows battery/connection and your art.
-   - Multiple images rotate automatically every 5 minutes.
+##  **Using This Repository**
 
-**Image Conversion Details**
-- ⚙️ Pipeline (handled by `niceview_lvgl_convert.py`):
-  - Resize to `--width 68` × `--height 140`.
-  - Rotate 90° clockwise by default (final display ~140×68).
-  - Convert to 1‑bit with Floyd–Steinberg dithering (can disable).
-  - Always invert colors (white ↔ black) to match widget expectations.
-  - Pack pixels and emit LVGL `LV_IMG_CF_INDEXED_1BIT` arrays.
-- 🧾 Declarations & rotation
-  - The workflow injects `LV_IMG_DECLARE(name);` lines and updates the widget to cycle through all images present.
-  - Rotation interval lives in `peripheral_status.c` (5 minutes). Adjust by editing the workflow’s update step or the file directly.
-- 🪪 Palette inversion
-  - The emitted arrays include a conditional palette driven by `CONFIG_NICE_VIEW_WIDGET_INVERTED` if used by your build.
+### Fork and Use
 
-**Local Testing**
-- Install deps: `pip install Pillow`
-- Convert one image locally:
-  - `python3 scripts/niceview_lvgl_convert.py assets/logo.png --outdir converted`
-- Useful flags:
-  - `--no-rotate` to keep original orientation
-  - `--no-dither` to disable FS dithering
-  - `--lsb-first` to change bit packing
-  - `--width/--height` to tune the resize step
+**This is the recommended approach for most users:**
 
-**Tips & Troubleshooting**
-- 🔐 PAT for Actions push: The image update workflow uses `secrets.ACTIONS_PAT` to push commits. Create a classic PAT with `repo` scope, add it as a repo secret named `ACTIONS_PAT`.
-- 🧹 Replace images: Remove old files from `assets/` to drop them from rotation, then push. The workflow will regenerate `art.c` and update the declarations.
-- 📝 Naming: Stick to alphanumerics/underscores to ensure valid C identifiers.
-- 🚫 Ignored paths: The build workflow ignores direct changes to `assets/` and `.github/`, but the converter’s commit touches `boards/...`, which triggers a build.
-- 📐 Aspect & readability: High‑contrast artwork works best at ~140×68 final. If your image looks muddy, try manual preprocessing (levels/contrast) before adding to `assets/`.
+1. **Fork this repository** to your GitHub account:
+   - Click the "Fork" button on GitHub
+   - This creates your own copy where you can make changes
 
-—
-Built with ❤️ on ZMK. If you want me to tweak the rotation interval, add a preview of the current keymap, or document flashing steps for your OS, just say the word.
+2. **Configure GitHub Actions** (required for automated builds):
+   - Go to your forked repo → Settings → Actions → General
+   - Enable "Read and write permissions" for GITHUB_TOKEN
+   - Create a PAT with scope `Contents: Read and write` (fine‑grained) for the forked repo
+   - Add it as a repository secret named `ACTIONS_PAT`
+
+3. **Customize your configuration**:
+   - Edit `config/corne.keymap` for your preferred key layout
+   - Add your images to `assets/` folder for custom Nice!View artwork
+   - Modify `config/corne.conf` for display and other settings
+
+4. **Build firmware**:
+   - Push your changes to trigger GitHub Actions
+   - Download firmware files from the Actions tab
+   - Flash to your keyboards
+
+### Direct Usage
+
+**For advanced users who want to use this config as-is:**
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/yourusername/zmk-config.git
+   cd zmk-config
+   ```
+
+2. **Build locally** (requires ZMK development environment):
+   ```bash
+   # Follow ZMK's local build instructions
+   west build -p -b nice_nano_v2 -- -DSHIELD="corne_left nice_view_adapter nice_view"
+   west build -p -b nice_nano_v2 -- -DSHIELD="corne_right nice_view_adapter nice_view_custom"
+   ```
+
+---
+
+##  **Repository Structure**
+
+```
+zmk-config/
+├── config/                          # ZMK configuration files
+│   ├── corne.keymap                 # Keymap layers, combos, and behaviors
+│   ├── corne.conf                   # ZMK settings (enables custom status screen)
+│   └── west.yml                     # ZMK upstream reference
+├── boards/shields/nice_view_custom/ # Custom Nice!View shield
+│   ├── widgets/                     # Custom widget implementations
+│   │   ├── peripheral_status.c/.h   # Main status widget (art + status)
+│   │   ├── status.c/.h             # Status display components
+│   │   ├── bolt.c                  # Bluetooth/power indicators
+│   │   ├── util.c/.h               # Utility functions
+│   │   └── art.c                   # ⚠️ Auto-generated image data (don't edit)
+│   ├── nice_view_custom.overlay     # Device tree overlay
+│   ├── nice_view_custom.conf        # Shield configuration
+│   └── CMakeLists.txt              # Build configuration
+├── assets/                          # 🖼️ Your custom images for Nice!View
+│   ├── itachi.jpeg                 # Example artwork
+│   ├── me.png                      # Example artwork
+│   └── palestine.webp              # Example artwork
+├── scripts/
+│   └── niceview_lvgl_convert.py    # Image → LVGL C array converter
+├── .github/workflows/               # GitHub Actions automation
+│   ├── update-images.yml           # Converts images and updates art.c
+│   └── build.yml                   # Builds firmware
+├── build.yaml                      # Build matrix for left/right halves
+└── zephyr/module.yml               # Zephyr module descriptor
+```
+
+---
+
+##  **Nice!View Artwork System**
+
+This repository features an **automated artwork system** that converts your images into display-ready formats and rotates them on your Nice!View screens.
+
+### How It Works
+
+**Step 1: Add Images** 📁
+- Place PNG/JPG/WEBP files into the `assets/` folder
+- Use simple filenames (letters, numbers, underscores only)
+- Example: `logo.png` becomes `LV_IMG_DECLARE(logo)` in code
+
+**Step 2: Automated Conversion** 🤖
+- GitHub Actions detects new images in `assets/`
+- Runs `scripts/niceview_lvgl_convert.py` to:
+  - Resize images to 68×140 pixels
+  - Rotate 90° clockwise for proper display orientation  
+  - Convert to 1-bit black/white with Floyd-Steinberg dithering
+  - Generate LVGL C arrays in `art.c`
+- Updates widget code to include new images in rotation
+- Commits changes back to your repository
+
+**Step 3: Firmware Build** 🏗️
+- Build workflow triggers automatically after image conversion
+- Compiles firmware for both keyboard halves:
+  - **Left**: `nice_nano_v2` + `corne_left` + `nice_view`
+  - **Right**: `nice_nano_v2` + `corne_right` + `nice_view_custom`
+- Firmware files available in GitHub Actions artifacts
+
+**Step 4: On-Device Display** 🖼️
+- Images rotate automatically every **5 minutes**
+- Display shows: battery level, connection status, and your artwork
+- Works seamlessly with ZMK's power management
+
+---
+
+##  **Configuration**
+
+### Keymap Customization
+
+Edit `config/corne.keymap` to customize your keyboard layout:
+
+- **Layers**: Define different key layouts (base, symbols, numbers, etc.)
+- **Combos**: Set key combinations for special functions
+- **Mod-tap**: Configure keys that act as modifiers when held, regular keys when tapped
+- **Macros**: Create custom key sequences
+
+**Current Layout Features:**
+- Home row modifiers (Alt, Shift, Ctrl, GUI)
+- 3 layers: base typing, media/navigation, symbols/numbers
+- Caps Lock combo (both thumb keys)
+- Custom shortcuts for window management
+
+### Display Settings
+
+Modify `config/corne.conf` to control display behavior:
+
+```conf
+CONFIG_ZMK_DISPLAY=y                        # Enable OLED display
+CONFIG_ZMK_DISPLAY_STATUS_SCREEN_CUSTOM=y   # Use custom status screen
+```
+
+**Optional Settings:**
+```conf
+# Enable RGB underglow (requires additional hardware)
+CONFIG_ZMK_RGB_UNDERGLOW=y
+CONFIG_WS2812_STRIP=y
+
+# Adjust display timeout and brightness
+CONFIG_ZMK_DISPLAY_WORK_QUEUE_DEDICATED=y
+```
+
+---
+
+## **Building Firmware**
+
+### Automatic Builds (Recommended)
+
+1. **Push changes** to your forked repository
+2. **GitHub Actions** automatically builds firmware
+3. **Download** from Actions tab → latest workflow run → Artifacts
+4. **Files generated:**
+   - `corne_left-nice_nano_v2-zmk.uf2` (left half)
+   - `corne_right-nice_nano_v2-zmk.uf2` (right half)
+
+### Manual/Local Builds
+
+**Prerequisites:**
+- ZMK development environment set up
+- West build tool installed
+
+**Build commands:**
+```bash
+# Left half
+west build -p -b nice_nano_v2 -- -DSHIELD="corne_left nice_view_adapter nice_view"
+
+# Right half  
+west build -p -b nice_nano_v2 -- -DSHIELD="corne_right nice_view_adapter nice_view_custom"
+```
+
+---
+
+##  **Image Conversion Details**
+
+### Automatic Conversion
+
+The `niceview_lvgl_convert.py` script processes images with these steps:
+
+1. **Resize** to 68×140 pixels (optimized for Nice!View)
+2. **Rotate** 90° clockwise for proper display orientation
+3. **Convert** to 1-bit black/white using Floyd-Steinberg dithering
+4. **Invert** colors (white ↔ black) for display compatibility
+5. **Generate** LVGL C arrays with `LV_IMG_CF_INDEXED_1BIT` format
+
+### Manual Testing
+
+**Install dependencies:**
+```bash
+pip install Pillow
+```
+
+**Convert single image:**
+```bash
+python3 scripts/niceview_lvgl_convert.py assets/logo.png --outdir converted
+```
+
+**Useful flags:**
+- `--no-rotate`: Keep original orientation
+- `--no-dither`: Disable Floyd-Steinberg dithering  
+- `--lsb-first`: Change bit packing order
+- `--width 68 --height 140`: Custom dimensions
+
+### Image Guidelines
+
+**Recommended specs:**
+- **Format**: PNG, JPG, WEBP, GIF
+- **Size**: Any size (auto-resized to 68×140)
+- **Content**: High contrast works best
+- **Filename**: Letters, numbers, underscores only
+
+**Pro tips:**
+- Black and white images convert best
+- Avoid fine details (display is only 68×140 pixels)
+- Test locally before committing
+
+---
+
+## **Local Development**
+
+### Setting Up Local Environment
+
+1. **Install ZMK dependencies:**
+   ```bash
+   # Follow ZMK's getting started guide
+   pip3 install --user -U west
+   west init -l config
+   west update
+   west zephyr-export
+   ```
+
+2. **Install image conversion tools:**
+   ```bash
+   pip install Pillow
+   ```
+
+3. **Test image conversion:**
+   ```bash
+   python3 scripts/niceview_lvgl_convert.py assets/test.png --outdir test_output
+   ```
+
+### Development Workflow
+
+1. **Edit keymap** in `config/corne.keymap`
+2. **Add images** to `assets/` folder
+3. **Test conversion** locally (optional)
+4. **Build firmware** using GitHub Actions or locally
+5. **Flash and test** on hardware
+
+---
+
+### Getting Help
+
+- **ZMK Documentation**: [zmk.dev](https://zmk.dev)
+- **ZMK Discord**: [discord.gg/8cfMkQksSB](https://discord.gg/8cfMkQksSB)
+- **Nice!Keyboards**: [nicekeyboards.com](https://nicekeyboards.com)
+
+### Tips
+
+- **High-contrast artwork** works best on the 1-bit display
+- **Keep backups** of your working firmware files
+- **Test one change at a time** when troubleshooting
+- **Check Actions logs** for detailed error messages
+
+---
+
+##  **Contributing**
+
+Feel free to:
+- 🐛 **Report bugs** via GitHub Issues
+- 💡 **Suggest improvements** for the artwork system
+- 🔧 **Submit PRs** for widget enhancements
+- 📚 **Improve documentation**
+
+
+---
+
+## **License**
+
+This configuration is provided under the MIT License. See individual files for their respective licenses.
+
+---
+
+**Built with ❤️ on ZMK**
+
+*Need help customizing the rotation interval, keymap layout, or adding new features? Open an issue and let's make this configuration even better!*
