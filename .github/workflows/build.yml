@@ -5,11 +5,13 @@ on:
       - 'assets/**'
       - 'scripts/niceview_lvgl_convert.py'
       - '.github/workflows/**'
+      - '*.md'
   pull_request:
     paths-ignore:
       - 'assets/**'
       - 'scripts/niceview_lvgl_convert.py'
       - '.github/workflows/**'
+      - '*.md'
   workflow_dispatch:
 
 jobs:
