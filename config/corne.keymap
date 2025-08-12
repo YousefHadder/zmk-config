@@ -53,7 +53,7 @@
             bindings = <
 &kp EQUAL  &kp NUMBER_1  &mt LEFT_SHIFT NUMBER_2  &mt LEFT_CONTROL NUMBER_3  &mt LEFT_GUI NUMBER_4  &kp N5       &kp N6   &mt RIGHT_GUI N7  &mt RIGHT_CONTROL N8  &mt RIGHT_SHIFT N9  &kp N0  &kp MINUS
 &kp CLCK   &trans        &trans                   &trans                     &trans                 &trans       &none    &none             &none                 &none               &none   &none
-&none      &trans        &trans                   &trans                     &trans                 &trans       &none    &none             &none                 &none               &none   &none
+&none      &trans        &trans                   &trans                     &trans                 &trans       &none    &none             &kp COMMA             &kp PERIOD          &none   &none
                                                   &kp LGUI                   &trans                 &kp SPACE    &kp RET  &trans            &kp RALT
             >;
         };
