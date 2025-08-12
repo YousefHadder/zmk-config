@@ -7,7 +7,6 @@ Pipeline:
   - Resize to width x height (defaults 140x60)
   - (Optional) Rotate 90° clockwise (default: rotate)
   - Convert to 1-bit (Floyd–Steinberg dither by default)
-  - ALWAYS invert colors (white <-> black) after conversion
   - Pack pixels (8 px / byte), MSB-first by default
   - Emit a .c file whose name matches the source image stem
   - LVGL descriptor uses LV_IMG_CF_INDEXED_1BIT and includes a 2‑entry conditional palette
@@ -17,10 +16,6 @@ Usage examples:
   python3 niceview_lvgl_convert.py img1.jpg img2.png --outdir out
   python3 niceview_lvgl_convert.py art.png --lsb-first
   python3 niceview_lvgl_convert.py logo.png --no-dither --no-rotate
-
-Notes:
-  - Colors are always inverted now (previous --invert flag removed).
-  - If you need non-inverted output, reintroduce a flag or flip the logic in to_1bpp().
 """
 
 import argparse
@@ -28,7 +23,7 @@ from pathlib import Path
 from PIL import Image
 
 def to_1bpp(img, dither=True, invert=True):
-    """Convert a PIL image to 1-bit; always invert=True in this script."""
+    """Convert a PIL image to 1-bit;"""
     if dither:
         bw = img.convert("1")  # 1-bit with FS dither
     else:
@@ -125,8 +120,7 @@ def process_image(path: Path, args):
         if not args.no_rotate:
             im = im.transpose(Image.ROTATE_270)
 
-        # Always invert now
-        bw = to_1bpp(im, dither=not args.no_dither, invert=True)
+        bw = to_1bpp(im, dither=not args.no_dither, invert=False)
         packed = pack_bits_1bpp(bw, lsb_first=args.lsb_first)
 
         outdir = Path(args.outdir)
@@ -143,7 +137,7 @@ def process_image(path: Path, args):
         return out_c, len(packed)
 
 def main():
-    p = argparse.ArgumentParser(description="Convert images to 1bpp indexed LVGL arrays (always inverted).")
+    p = argparse.ArgumentParser(description="Convert images to 1bpp indexed LVGL arrays.")
     p.add_argument("inputs", nargs="+", help="Input image files (png/jpg/gif/bmp/...)")
     p.add_argument("--outdir", default="out", help="Output directory (default: out)")
     p.add_argument("--width", type=int, default=68, help="Resize target width (default: 140)")
@@ -165,7 +159,7 @@ def main():
         total_bytes += nbytes
         outputs.append(out_path)
 
-    print(f"Done. Wrote {len(outputs)} file(s), total {total_bytes} bytes of packed 1bpp (inverted) data.")
+    print(f"Done. Wrote {len(outputs)} file(s), total {total_bytes} bytes of packed 1bpp data.")
     for o in outputs:
         print(f" - {o}")
 

@@ -139,7 +139,7 @@ int zmk_widget_status_init(struct zmk_widget_status *widget, lv_obj_t *parent) {
   size_t array_size = sizeof(anim_imgs) / sizeof(anim_imgs[0]);
   lv_obj_center(art);                                                   //<--
   lv_animimg_set_src(art, (const void **)anim_imgs, array_size); //<--
-  lv_animimg_set_duration(art, 5000);                                   //<--
+  lv_animimg_set_duration(art, 30000);                                   //<--
   lv_animimg_set_repeat_count(art, LV_ANIM_REPEAT_INFINITE);            //<--
   lv_animimg_start(art);                                                //<--
 
