@@ -2,34 +2,37 @@
 """
 niceview_lvgl_convert.py
 
-Convert images to fixed size 1-bit C arrays (and optional LVGL descriptor).
-Default pipeline:
-  - Resize to 140x60
+Convert images to fixed size 1-bit indexed LVGL C arrays.
+Pipeline:
+  - Resize to width x height (defaults 140x60)
+  - (Optional) Rotate 90° clockwise (default: rotate)
   - Convert to 1-bit (Floyd–Steinberg dither by default)
-  - Rotate 90° clockwise (so logical width/height swap for LVGL)
+  - ALWAYS invert colors (white <-> black) after conversion
   - Pack pixels (8 px / byte), MSB-first by default
-  - Emit a .c file with the byte array and (optionally) an lv_img_dsc_t
+  - Emit a .c file whose name matches the source image stem
+  - LVGL descriptor uses LV_IMG_CF_INDEXED_1BIT and includes a 2‑entry conditional palette
 
 Usage examples:
   python3 niceview_lvgl_convert.py img.jpg
-  python3 niceview_lvgl_convert.py img1.jpg img2.png --outdir out --lvgl
-  python3 niceview_lvgl_convert.py art.png --invert --lsb-first
+  python3 niceview_lvgl_convert.py img1.jpg img2.png --outdir out
+  python3 niceview_lvgl_convert.py art.png --lsb-first
   python3 niceview_lvgl_convert.py logo.png --no-dither --no-rotate
 
 Notes:
-  - LVGL descriptor uses LV_IMG_CF_ALPHA_1BIT (alpha mask). If you need indexed
-    1-bit instead, adapt the code to prepend a palette and use INDEXED_1BIT.
+  - Colors are always inverted now (previous --invert flag removed).
+  - If you need non-inverted output, reintroduce a flag or flip the logic in to_1bpp().
 """
 
 import argparse
 from pathlib import Path
 from PIL import Image
 
-def to_1bpp(img, dither=True, invert=False):
-    """Convert a PIL image to 1-bit, optional invert after conversion."""
+def to_1bpp(img, dither=True, invert=True):
+    """Convert a PIL image to 1-bit; always invert=True in this script."""
     if dither:
         bw = img.convert("1")  # 1-bit with FS dither
     else:
+        # Threshold
         bw = img.convert("L").point(lambda p: 255 if p >= 128 else 0, mode="1")
     if invert:
         bw = bw.point(lambda p: 255 - p, mode="1")
@@ -65,40 +68,55 @@ def pack_bits_1bpp(img_1bit, lsb_first=False):
             out.append(bit_acc & 0xFF)
     return bytes(out)
 
-def c_array_literal(data: bytes, cols=12, var_name="img_map"):
-    hexes = [f"0x{b:02X}" for b in data]
-    lines = [", ".join(hexes[i:i+cols]) for i in range(0, len(hexes), cols)]
-    body = ",\n    ".join(lines) if lines else ""
-    return f"static const unsigned char {var_name}[] = {{\n    {body}\n}};"
+def make_macro_name(s: str) -> str:
+    """Make a valid macro name (uppercase, only A-Z, 0-9, _) from a string."""
+    return "".join(ch.upper() if ch.isalnum() else "_" for ch in s)
 
-def make_c_identifier(s: str) -> str:
-    base = "".join(ch if ch.isalnum() or ch == "_" else "_" for ch in s)
-    if base and base[0].isdigit():
-        base = "_" + base
-    return base
+def emit_indexed1bit_lvgl_c_file(filename_stem, width, height, image_bytes, bytes_per_line=12):
+    macro_name = make_macro_name(filename_stem)
+    array_name = f"{filename_stem}_map"
+    img_var_name = filename_stem
 
-def emit_lvgl_alpha1_descriptor(name_c, width, height, data_var_name):
-    return f"""#include "lvgl.h"
-
-const lv_img_dsc_t {name_c}_img = {{
-    .header = {{
-        .cf = LV_IMG_CF_ALPHA_1BIT,
-        .always_zero = 0,
-        .w = {width},
-        .h = {height},
-    }},
-    .data_size = sizeof({data_var_name}),
-    .data = {data_var_name},
-}};
+    # Conditional palette (index 0 / index 1) – unchanged from previous requirement.
+    palette_block = """\
+#if CONFIG_NICE_VIEW_WIDGET_INVERTED
+    0xff, 0xff, 0xff, 0xff, /*Color of index 0*/
+    0x00, 0x00, 0x00, 0xff, /*Color of index 1*/
+#else
+    0x00, 0x00, 0x00, 0xff, /*Color of index 0*/
+    0xff, 0xff, 0xff, 0xff, /*Color of index 1*/
+#endif
 """
 
+    hexes = [f"0x{b:02X}" for b in image_bytes]
+    lines = [", ".join(hexes[i:i+bytes_per_line]) for i in range(0, len(hexes), bytes_per_line)]
+    image_array_literal = ",\n    ".join(lines)
+    array_block = f"{palette_block}\n{image_array_literal}"
+
+    c_content = f"""\
+#ifndef LV_ATTRIBUTE_IMG_{macro_name}
+#define LV_ATTRIBUTE_IMG_{macro_name}
+#endif
+
+const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST LV_ATTRIBUTE_IMG_{macro_name} uint8_t
+    {array_name}[] = {{
+    {array_block}
+}};
+
+const lv_img_dsc_t {img_var_name} = {{
+    .header.cf = LV_IMG_CF_INDEXED_1BIT,
+    .header.always_zero = 0,
+    .header.reserved = 0,
+    .header.w = {width},
+    .header.h = {height},
+    .data_size = sizeof({array_name}),
+    .data = {array_name},
+}};
+"""
+    return c_content
+
 def process_image(path: Path, args):
-    base = path.stem
-    name_c = make_c_identifier(
-        f"{args.name_prefix}{base}_140x{args.width}x{args.height}_rot90"
-        if not args.no_rotate else f"{args.name_prefix}{base}_{args.width}x{args.height}"
-    )
-    data_var = f"{name_c}_map"
+    filename_stem = path.stem
 
     with Image.open(path) as im:
         im = im.convert("L")
@@ -107,54 +125,33 @@ def process_image(path: Path, args):
         if not args.no_rotate:
             im = im.transpose(Image.ROTATE_270)
 
-        bw = to_1bpp(im, dither=not args.no_dither, invert=args.invert)
+        # Always invert now
+        bw = to_1bpp(im, dither=not args.no_dither, invert=True)
         packed = pack_bits_1bpp(bw, lsb_first=args.lsb_first)
 
         outdir = Path(args.outdir)
         outdir.mkdir(parents=True, exist_ok=True)
-        out_c = outdir / f"{name_c}.c"
+        out_c = outdir / f"{filename_stem}.c"
 
-        if not args.no_rotate:
-            final_w, final_h = args.height, args.width
-        else:
-            final_w, final_h = args.width, args.height
+        final_w, final_h = (args.height, args.width) if not args.no_rotate else (args.width, args.height)
 
-        header = f"""/* Auto-generated by niceview_lvgl_convert.py
- * Source: {path.name}
- * Target resize: {args.width}x{args.height}
- * Rotated: {"90CW" if not args.no_rotate else "no"}
- * Dither: {"Floyd–Steinberg" if not args.no_dither else "threshold"}
- * Bit order: {"LSB-first" if args.lsb_first else "MSB-first"}
- * Inverted: {"yes" if args.invert else "no"}
- * Descriptor logical size: {final_w}x{final_h}
- */
-#include <stdint.h>
-"""
-
-        array_literal = c_array_literal(packed, cols=args.bytes_per_line, var_name=data_var)
-
-        contents = [header, array_literal, "\n"]
-        if args.lvgl:
-            contents.append(emit_lvgl_alpha1_descriptor(name_c, final_w, final_h, data_var))
+        c_file_contents = emit_indexed1bit_lvgl_c_file(filename_stem, final_w, final_h, packed, bytes_per_line=args.bytes_per_line)
 
         with open(out_c, "w", encoding="utf-8") as f:
-            f.write("\n".join(contents))
+            f.write(c_file_contents)
 
         return out_c, len(packed)
 
 def main():
-    p = argparse.ArgumentParser(description="Convert images to 1bpp C arrays (+optional LVGL descriptor).")
+    p = argparse.ArgumentParser(description="Convert images to 1bpp indexed LVGL arrays (always inverted).")
     p.add_argument("inputs", nargs="+", help="Input image files (png/jpg/gif/bmp/...)")
     p.add_argument("--outdir", default="out", help="Output directory (default: out)")
-    p.add_argument("--name-prefix", default="", help="Prefix for generated C identifiers")
     p.add_argument("--width", type=int, default=60, help="Resize target width (default: 140)")
     p.add_argument("--height", type=int, default=140, help="Resize target height (default: 60)")
     p.add_argument("--no-dither", action="store_true", help="Disable Floyd–Steinberg dithering (use threshold)")
-    p.add_argument("--invert", action="store_true", help="Invert black/white after conversion")
     p.add_argument("--lsb-first", action="store_true", help="Pack bits with LSB-first (bit 0 is leftmost pixel)")
     p.add_argument("--no-rotate", action="store_true", help="Do NOT rotate 90° clockwise")
     p.add_argument("--bytes-per-line", type=int, default=12, help="C array formatting: bytes per line")
-    p.add_argument("--lvgl", action="store_true", help="Emit an LVGL v8 lv_img_dsc_t (LV_IMG_CF_ALPHA_1BIT)")
     args = p.parse_args()
 
     total_bytes = 0
@@ -168,10 +165,9 @@ def main():
         total_bytes += nbytes
         outputs.append(out_path)
 
-    print(f"Done. Wrote {len(outputs)} file(s), total {total_bytes} bytes of 1bpp data.")
+    print(f"Done. Wrote {len(outputs)} file(s), total {total_bytes} bytes of packed 1bpp (inverted) data.")
     for o in outputs:
         print(f" - {o}")
 
 if __name__ == "__main__":
     main()
-

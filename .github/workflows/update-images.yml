@@ -16,9 +16,6 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        persist-credentials: true
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -55,14 +52,6 @@ jobs:
       run: |
         # Start building the new art.c file
         cat > boards/shields/nice_view_custom/widgets/art.c << 'EOF'
-        /*
-         *
-         * Copyright (c) 2023 Collin Hodge
-         * Copyright (c) 2023 The ZMK Contributors
-         * SPDX-License-Identifier: MIT
-         *
-         */
-
         #include <lvgl.h>
 
         #ifndef LV_ATTRIBUTE_MEM_ALIGN
@@ -74,32 +63,8 @@ jobs:
         # Process each converted file
         for file in converted/*.c; do
           if [ -f "$file" ]; then
-            # Extract the base name for the attribute definition
-            basename=$(basename "$file" .c)
-
-            # Add attribute definition
+            cat "$file" >> boards/shields/nice_view_custom/widgets/art.c
             echo "" >> boards/shields/nice_view_custom/widgets/art.c
-            echo "#ifndef LV_ATTRIBUTE_IMG_${basename^^}" >> boards/shields/nice_view_custom/widgets/art.c
-            echo "#define LV_ATTRIBUTE_IMG_${basename^^}" >> boards/shields/nice_view_custom/widgets/art.c
-            echo "#endif" >> boards/shields/nice_view_custom/widgets/art.c
-            echo "" >> boards/shields/nice_view_custom/widgets/art.c
-
-            # Add the image data and descriptor, but modify for indexed format
-            sed 's/LV_IMG_CF_ALPHA_1BIT/LV_IMG_CF_INDEXED_1BIT/g' "$file" | \
-            sed "s/static const unsigned char \(.*\)_map\[\]/const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST LV_ATTRIBUTE_IMG_${basename^^} uint8_t \1_map[]/" | \
-            sed '/^#include <stdint.h>/d' | \
-            sed '/^\/\* Auto-generated/,/^ \*\//d' | \
-            sed "1i\\
-        const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST LV_ATTRIBUTE_IMG_${basename^^} uint8_t ${basename}_map[] = {\\
-        #if CONFIG_NICE_VIEW_WIDGET_INVERTED\\
-                0xff, 0xff, 0xff, 0xff, /*Color of index 0*/\\
-                0x00, 0x00, 0x00, 0xff, /*Color of index 1*/\\
-        #else\\
-                0x00, 0x00, 0x00, 0xff, /*Color of index 0*/\\
-                0xff, 0xff, 0xff, 0xff, /*Color of index 1*/\\
-        #endif\\
-        \\
-        " >> boards/shields/nice_view_custom/widgets/art.c
           fi
         done
 
