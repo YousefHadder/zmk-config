@@ -45,7 +45,7 @@ jobs:
         mkdir -p converted
 
         # Convert all images in assets folder
-        find assets -type f \( -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.gif" -o -name "*.bmp" \) -exec python3 scripts/niceview_lvgl_convert.py {} --outdir converted --lvgl \;
+        find assets -type f \( -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.gif" -o -name "*.bmp" -o -name "*.webp" \) -exec python3 scripts/niceview_lvgl_convert.py {} --outdir converted \;
 
     - name: Generate art.c file
       if: steps.check_images.outputs.images_exist == 'true'
